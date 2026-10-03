@@ -36,7 +36,13 @@
 
 熟化池状态不可设为「已出灰」（`drawn`），除非该池**最近一条** `SlakeBatch` 的 `peakTempC` 已记录且 **≥ 60℃**。
 
-规则实现：`app/services/rules.py`
+**厂区峰值上限条**：在顶栏「峰值上限」（`/plants/peak-limit`）按厂区配置允许写入的最高峰值摄氏度，可启用 / 停用。
+
+- 启用期间，平面图抽屉与批次表单（新建 / 编辑）两条写入链路统一经 `app/services/peak_limits.py` 收口：峰值超过本厂现行上限一律中文拒绝、整单回滚不入库；等于上限放行；停用则不拦。
+- 上限条**不替代**出灰规则：出灰仍只认最近批次峰值 ≥ 60℃。
+- 并发保护：峰值写入先锁厂区行按现行上限复查，再以 `slake_batches.version` 做 `UPDATE ... WHERE version=?` 乐观锁；两人几乎同时改同一熟化班时只有一版生效，落败方收到中文提示且不入库。
+
+规则实现：`app/services/rules.py`（出灰 60℃）、`app/services/peak_limits.py`（厂级上限与并发）
 
 ## 快速启动
 

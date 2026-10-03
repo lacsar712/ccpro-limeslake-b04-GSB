@@ -70,6 +70,31 @@ class BoardController extends Controller {
   }
 }
 
+class PeakLimitController extends Controller {
+  static targets = ["pond", "peak", "hint"]
+  connect() {
+    this.update()
+  }
+  update() {
+    const option = this.pondTarget.selectedOptions?.[0]
+    const limit = option?.dataset.limit || ""
+    const peak = this.hasPeakTarget ? this.peakTarget : null
+    if (peak) {
+      if (limit) peak.setAttribute("max", limit)
+      else peak.removeAttribute("max")
+    }
+    if (!this.hasHintTarget) return
+    if (limit) {
+      this.hintTarget.textContent = `该池所属厂区峰值上限 ${limit}℃，超限保存将被拒绝（上限不替代出灰 ≥ 60℃ 规则）。`
+      this.hintTarget.className = "limit-tag on"
+    } else {
+      this.hintTarget.textContent = "该池所属厂区峰值上限条已停用，峰值写入不拦截。"
+      this.hintTarget.className = "limit-tag off"
+    }
+  }
+}
+
 application.register("flash", FlashController)
 application.register("form-hint", FormHintController)
 application.register("board", BoardController)
+application.register("peak-limit", PeakLimitController)

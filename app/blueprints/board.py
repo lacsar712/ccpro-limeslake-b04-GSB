@@ -3,6 +3,13 @@ from flask_login import login_required
 
 from app.extensions import db
 from app.models import Plant, Pond
+from app.services.peak_limits import (
+    PeakLimitError,
+    active_peak_limit,
+    assert_peak_within_limit,
+    lock_plant_for_peak_write,
+    update_batch_peak,
+)
 from app.services.rules import RuleError, assert_can_set_pond_status, latest_batch_for_pond
 
 bp = Blueprint("board", __name__, url_prefix="/board")
@@ -50,6 +57,7 @@ def floor_plan():
         "board/floor.html",
         plants=plants,
         active_plant=active_plant,
+        active_limit=active_peak_limit(active_plant) if active_plant else None,
         pond_cards=pond_cards,
         selected=selected,
         selected_batch=selected_batch,
@@ -64,6 +72,7 @@ def pond_ops(pond_id: int):
     status = request.form.get("status") or pond.status
     peak_raw = (request.form.get("peak_temp_c") or "").strip()
     notes = (request.form.get("batch_notes") or "").strip()
+    version_raw = (request.form.get("version") or "").strip()
 
     batch = latest_batch_for_pond(pond)
     if batch is None:
@@ -72,23 +81,35 @@ def pond_ops(pond_id: int):
             url_for("board.floor_plan", plant_id=pond.plant_id, pond=pond.id)
         )
 
+    try:
+        expected_version = int(version_raw) if version_raw else None
+    except ValueError:
+        expected_version = None
+
+    peak_changed = False
+    new_peak = None
     if peak_raw:
         try:
-            batch.peak_temp_c = float(peak_raw)
+            new_peak = float(peak_raw)
+            peak_changed = new_peak != batch.peak_temp_c
         except ValueError:
             flash("峰值温度格式无效", "error")
             return redirect(
                 url_for("board.floor_plan", plant_id=pond.plant_id, pond=pond.id)
             )
 
-    batch.notes = notes
-
     try:
+        # 锁厂行后按「现行」上限复查；条件更新保证并发只放一版
+        plant = lock_plant_for_peak_write(pond.plant_id)
+        if peak_changed:
+            assert_peak_within_limit(new_peak, plant)
+            update_batch_peak(batch, new_peak, expected_version)
+        batch.notes = notes
         assert_can_set_pond_status(pond, status)
         pond.status = status
         db.session.commit()
         flash(f"{pond.code} 已更新", "ok")
-    except RuleError as exc:
+    except (RuleError, PeakLimitError) as exc:
         db.session.rollback()
         flash(str(exc), "error")
 

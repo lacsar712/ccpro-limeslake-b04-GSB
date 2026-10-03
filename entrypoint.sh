@@ -29,12 +29,36 @@ else:
 PY
 
 python << 'PY'
+from sqlalchemy import text
 from app import create_app, seed_demo_data
 from app.extensions import db
 
 app = create_app()
 with app.app_context():
     db.create_all()
+
+    # 轻量幂等迁移：旧库 create_all 不会补新列
+    def has_column(table, column):
+        rows = db.session.execute(text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = :t AND column_name = :c"
+        ), {"t": table, "c": column}).fetchall()
+        return bool(rows)
+
+    if not has_column("plants", "peak_temp_limit_enabled"):
+        db.session.execute(text(
+            "ALTER TABLE plants ADD COLUMN peak_temp_limit_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
+    if not has_column("plants", "peak_temp_limit_c"):
+        db.session.execute(text(
+            "ALTER TABLE plants ADD COLUMN peak_temp_limit_c DOUBLE PRECISION"
+        ))
+    if not has_column("slake_batches", "version"):
+        db.session.execute(text(
+            "ALTER TABLE slake_batches ADD COLUMN version INTEGER NOT NULL DEFAULT 1"
+        ))
+    db.session.commit()
+
     seed_demo_data()
     print("migrate/seed done")
 PY

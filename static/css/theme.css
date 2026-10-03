@@ -420,6 +420,50 @@ button:hover, .btn:hover { background: #1e293b; }
 }
 .actions { display: flex; gap: 10px; align-items: center; }
 
+/* 厂区峰值上限 */
+.limit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.limit-card { max-width: none; }
+.limit-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.limit-card-head h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.limit-sub { margin: 0; color: var(--muted); font-size: 0.88rem; }
+.limit-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.limit-badge.on { background: var(--slake-bg); color: var(--slake-ink); border: 1px solid rgba(101, 163, 13, 0.4); }
+.limit-badge.off { background: var(--drawn-bg); color: var(--drawn-ink); }
+.limit-form { display: grid; gap: 12px; margin: 0; }
+.limit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.limit-toggle input { width: auto; }
+.limit-tag {
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+.limit-tag.on { background: var(--slake-bg); color: var(--slake-ink); border: 1px solid rgba(101, 163, 13, 0.35); }
+.limit-tag.off { background: var(--drawn-bg); color: var(--drawn-ink); }
+.plant-meta .limit-badge { margin-left: 8px; vertical-align: middle; }
+
 @media (max-width: 720px) {
   .topbar, .ops-main { padding-left: 16px; padding-right: 16px; }
   .floor-head { flex-direction: column; }

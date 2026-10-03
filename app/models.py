@@ -32,6 +32,9 @@ class Plant(db.Model):
     name = db.Column(db.String(120), nullable=False)
     location = db.Column(db.String(200), nullable=False, default="")
     notes = db.Column(db.Text, nullable=False, default="")
+    # 厂区级「最高峰值温度」上限条：停用（enabled=False）时不拦截峰值写入
+    peak_temp_limit_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    peak_temp_limit_c = db.Column(db.Float, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
 
     ponds = db.relationship("Pond", back_populates="plant", cascade="all, delete-orphan")
@@ -72,6 +75,8 @@ class SlakeBatch(db.Model):
     started_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     target_temp_c = db.Column(db.Float, nullable=False, default=80.0)
     peak_temp_c = db.Column(db.Float, nullable=True)
+    # 乐观锁版本号：两人几乎同时改同一熟化班的峰值时，只许一版生效
+    version = db.Column(db.Integer, nullable=False, default=1)
     notes = db.Column(db.Text, nullable=False, default="")
 
     pond = db.relationship("Pond", back_populates="batches")

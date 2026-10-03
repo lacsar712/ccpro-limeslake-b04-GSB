@@ -6,11 +6,22 @@
     <h1>{% if batch %}编辑熟化批次{% else %}登记熟化批次{% endif %}</h1>
   </div>
 </header>
-<form class="panel" method="post">
+<form class="panel" method="post" data-controller="peak-limit">
+  {% if batch %}<input type="hidden" name="version" value="{{ batch.version }}" />{% endif %}
   <label>熟化池
-    <select name="pond_id" required>
+    <select
+      name="pond_id"
+      required
+      data-peak-limit-target="pond"
+      data-action="change->peak-limit#update"
+    >
       {% for pond in ponds %}
-      <option value="{{ pond.id }}" {% if batch and batch.pond_id == pond.id %}selected{% endif %}>{{ pond.code }} · {{ pond.plant.name }}</option>
+      {% set lim = plant_limits.get(pond.id) if plant_limits else None %}
+      <option
+        value="{{ pond.id }}"
+        data-limit="{{ '%g'|format(lim) if lim is not none else '' }}"
+        {% if batch and batch.pond_id == pond.id %}selected{% endif %}
+      >{{ pond.code }} · {{ pond.plant.name }}</option>
       {% endfor %}
     </select>
   </label>
@@ -22,8 +33,15 @@
     <input name="target_temp_c" type="number" step="0.1" value="{{ batch.target_temp_c if batch else 80 }}" required />
   </label>
   <label>峰值温度 ℃（可空）
-    <input name="peak_temp_c" type="number" step="0.1" value="{{ batch.peak_temp_c if batch and batch.peak_temp_c is not none else '' }}" />
+    <input
+      name="peak_temp_c"
+      type="number"
+      step="0.1"
+      data-peak-limit-target="peak"
+      value="{{ batch.peak_temp_c if batch and batch.peak_temp_c is not none else '' }}"
+    />
   </label>
+  <p class="limit-tag off" data-peak-limit-target="hint"></p>
   <label>备注
     <textarea name="notes" rows="3">{{ batch.notes if batch else '' }}</textarea>
   </label>
