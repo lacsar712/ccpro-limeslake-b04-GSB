@@ -70,6 +70,22 @@ class BoardController extends Controller {
   }
 }
 
+class PeakLimitController extends Controller {
+  static targets = ["pond", "hint"]
+  connect() {
+    this.update()
+  }
+  update() {
+    if (!this.hasHintTarget || !this.hasPondTarget) return
+    const option = this.pondTarget.selectedOptions[0]
+    const cap = option ? option.dataset.cap || "" : ""
+    this.hintTarget.textContent = cap
+      ? `该池所属厂区峰值上限 ${cap}℃；超过上限将被拒绝且不入库。`
+      : "该池所属厂区未启用峰值上限，峰值写入不拦截。"
+  }
+}
+
 application.register("flash", FlashController)
 application.register("form-hint", FormHintController)
 application.register("board", BoardController)
+application.register("peak-limit", PeakLimitController)

@@ -32,6 +32,10 @@ class Plant(db.Model):
     name = db.Column(db.String(120), nullable=False)
     location = db.Column(db.String(200), nullable=False, default="")
     notes = db.Column(db.Text, nullable=False, default="")
+    # 厂区峰值上限（摄氏度）。peak_cap_enabled 为 True 时生效；
+    # peak_cap_c 可空，空值即使启用也视为未设定上限（不拦截）。
+    peak_cap_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    peak_cap_c = db.Column(db.Float, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
 
     ponds = db.relationship("Pond", back_populates="plant", cascade="all, delete-orphan")
@@ -73,5 +77,7 @@ class SlakeBatch(db.Model):
     target_temp_c = db.Column(db.Float, nullable=False, default=80.0)
     peak_temp_c = db.Column(db.Float, nullable=True)
     notes = db.Column(db.Text, nullable=False, default="")
+    # 乐观锁版本：两人几乎同时改同一熟化班峰值时，凭此只放一版入库。
+    version = db.Column(db.Integer, nullable=False, default=1)
 
     pond = db.relationship("Pond", back_populates="batches")

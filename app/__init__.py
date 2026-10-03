@@ -21,6 +21,12 @@ def create_app() -> Flask:
     db.init_app(app)
     login_manager.init_app(app)
 
+    with app.app_context():
+        from app.services.schema import ensure_schema
+
+        # 旧库补列（plants.peak_cap_*、slake_batches.version），幂等。
+        ensure_schema()
+
     from app.models import User
 
     @login_manager.user_loader
@@ -30,12 +36,14 @@ def create_app() -> Flask:
     from app.blueprints.auth import bp as auth_bp
     from app.blueprints.board import bp as board_bp
     from app.blueprints.batches import bp as batches_bp
+    from app.blueprints.plants import bp as plants_bp
     from app.blueprints.ponds import bp as ponds_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(board_bp)
     app.register_blueprint(ponds_bp)
     app.register_blueprint(batches_bp)
+    app.register_blueprint(plants_bp)
 
     @app.route("/")
     def index():
@@ -76,7 +84,13 @@ def seed_demo_data() -> None:
         db.session.commit()
         return
 
-    plant = Plant(name="东湾石灰厂", location="江北码头侧", notes="熟化池示范厂区")
+    plant = Plant(
+        name="东湾石灰厂",
+        location="江北码头侧",
+        notes="熟化池示范厂区",
+        peak_cap_enabled=True,
+        peak_cap_c=100.0,
+    )
     db.session.add(plant)
     db.session.flush()
 

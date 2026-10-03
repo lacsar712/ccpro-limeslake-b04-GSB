@@ -3,7 +3,13 @@ from flask_login import login_required
 
 from app.extensions import db
 from app.models import Plant, Pond
-from app.services.rules import RuleError, assert_can_set_pond_status, latest_batch_for_pond
+from app.services.rules import (
+    RuleError,
+    assert_can_set_pond_status,
+    atomically_save_batch,
+    latest_batch_for_pond,
+    peak_cap_for_plant,
+)
 
 bp = Blueprint("board", __name__, url_prefix="/board")
 
@@ -54,6 +60,7 @@ def floor_plan():
         selected=selected,
         selected_batch=selected_batch,
         status_labels=STATUS_LABELS,
+        peak_cap_c=peak_cap_for_plant(active_plant),
     )
 
 
@@ -64,6 +71,7 @@ def pond_ops(pond_id: int):
     status = request.form.get("status") or pond.status
     peak_raw = (request.form.get("peak_temp_c") or "").strip()
     notes = (request.form.get("batch_notes") or "").strip()
+    version_raw = (request.form.get("version") or "").strip()
 
     batch = latest_batch_for_pond(pond)
     if batch is None:
@@ -72,18 +80,36 @@ def pond_ops(pond_id: int):
             url_for("board.floor_plan", plant_id=pond.plant_id, pond=pond.id)
         )
 
-    if peak_raw:
+    try:
+        expected_version = int(version_raw) if version_raw else None
+    except ValueError:
+        expected_version = None
+
+    # 峰值框留空表示本次不改峰值（只改状态/备注）：保留旧值且不施加上限，
+    # 历史遗留的超限旧值不阻塞出灰；填了值才走峰值写入与厂区上限校验。
+    peak_submitted = bool(peak_raw)
+    if peak_submitted:
         try:
-            batch.peak_temp_c = float(peak_raw)
+            peak_value = float(peak_raw)
         except ValueError:
             flash("峰值温度格式无效", "error")
             return redirect(
                 url_for("board.floor_plan", plant_id=pond.plant_id, pond=pond.id)
             )
-
-    batch.notes = notes
+    else:
+        peak_value = batch.peak_temp_c
 
     try:
+        atomically_save_batch(
+            batch=batch,
+            pond_id=pond.id,
+            started_at=batch.started_at,
+            target_temp_c=batch.target_temp_c,
+            peak_temp_c=peak_value,
+            notes=notes,
+            expected_version=expected_version,
+            enforce_peak_cap=peak_submitted,
+        )
         assert_can_set_pond_status(pond, status)
         pond.status = status
         db.session.commit()

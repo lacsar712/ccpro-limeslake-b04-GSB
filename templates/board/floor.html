@@ -30,7 +30,14 @@
   {% endif %}
 
   {% if active_plant %}
-  <p class="plant-meta">{{ active_plant.location or '厂区位置未填' }} · {{ pond_cards|length }} 个池位</p>
+  <p class="plant-meta">
+    {{ active_plant.location or '厂区位置未填' }} · {{ pond_cards|length }} 个池位 ·
+    {% if peak_cap_c is not none %}
+    峰值上限 {{ '%g'|format(peak_cap_c) }}℃（启用）
+    {% else %}
+    峰值上限停用
+    {% endif %}
+  </p>
   {% endif %}
 
   <div class="pond-grid" role="list">
@@ -108,6 +115,7 @@
         action="{{ url_for('board.pond_ops', pond_id=selected.id) }}"
         data-controller="form-hint"
       >
+        <input type="hidden" name="version" value="{{ selected_batch.version }}" />
         <label>登记 / 修正峰值温度 ℃
           <input
             name="peak_temp_c"
@@ -117,6 +125,11 @@
             placeholder="例如 72"
           />
         </label>
+        {% if peak_cap_c is not none %}
+        <p class="hint cap-hint">本厂峰值上限 {{ '%g'|format(peak_cap_c) }}℃；超过上限将被拒绝且不入库（留空表示本次不改峰值）。</p>
+        {% else %}
+        <p class="hint cap-hint">本厂未启用峰值上限，峰值写入不拦截（留空表示本次不改峰值）。</p>
+        {% endif %}
         <label>批次备注
           <textarea name="batch_notes" rows="2">{{ selected_batch.notes }}</textarea>
         </label>
